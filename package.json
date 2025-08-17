@@ -1,0 +1,27 @@
+{
+  "name": "ai-usage-ratio",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seta-takumi/ai-usage-ratio.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/seta-takumi/ai-usage-ratio/issues"
+  },
+  "homepage": "https://github.com/seta-takumi/ai-usage-ratio#readme",
+  "description": "",
+  "dependencies": {
+    "@octokit/rest": "^22.0.0",
+    "dotenv": "^17.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.4"
+  }
+}
