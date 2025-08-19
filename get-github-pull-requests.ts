@@ -118,7 +118,9 @@ const fetchPullRequests = async (
     // created_atベースで指定した期間内でフィルタ
     const relevantPrs = prs.filter((pr) => {
       const createdAt = new Date(pr.created_at);
-      return createdAt >= dateRange.start && createdAt <= dateRange.end;
+      // 終了日の23:59:59まで含めるために1日追加
+      const endDate = new Date(new Date(dateRange.end).setDate(new Date(dateRange.end).getDate() + 1));
+      return createdAt >= dateRange.start && createdAt <= endDate;
     });
     allPrs.push(...relevantPrs);
     page++;
@@ -323,7 +325,7 @@ const loadConfigFromEnv = (): Config => {
     repositories,
     dateRange: {
       start: new Date(startDate),
-      end: new Date(endDate), //終了日の23:59:59まで含めるために1日追加
+      end: new Date(endDate),
     },
     outputPath,
     githubToken,
