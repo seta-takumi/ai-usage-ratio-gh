@@ -109,21 +109,17 @@ const fetchPullRequests = async (
 
     if (prs.length === 0) break;
 
-    // created_atベースで早期終了判定
-    const oldestPrDate = new Date(prs[prs.length - 1].created_at);
-    if (oldestPrDate < dateRange.start) {
-      // このページで期間内のPRのみを追加
-      const relevantPrs = prs.filter(
-        (pr) => new Date(pr.created_at) >= dateRange.start
-      );
-      allPrs.push(...relevantPrs);
+    // 最新のPRが開始日より前なら以降は全て期間外
+    const latestPrDate = new Date(prs[0].created_at);
+    if (latestPrDate < dateRange.start) {
       break;
     }
 
-    // 期間内のPRのみを追加（終了日チェック）
-    const relevantPrs = prs.filter(
-      (pr) => new Date(pr.created_at) <= dateRange.end
-    );
+    // created_atベースで指定した期間内でフィルタ
+    const relevantPrs = prs.filter((pr) => {
+      const createdAt = new Date(pr.created_at);
+      return createdAt >= dateRange.start && createdAt <= dateRange.end;
+    });
     allPrs.push(...relevantPrs);
     page++;
   }
@@ -327,7 +323,7 @@ const loadConfigFromEnv = (): Config => {
     repositories,
     dateRange: {
       start: new Date(startDate),
-      end: new Date(endDate),
+      end: new Date(endDate), //終了日の23:59:59まで含めるために1日追加
     },
     outputPath,
     githubToken,
