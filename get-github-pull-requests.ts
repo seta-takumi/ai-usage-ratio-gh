@@ -30,6 +30,7 @@ interface PullRequestData {
   updatedAt: Date;
   mergedAt: Date | null;
   closedAt: Date | null;
+  leadTimeDays: number | null;
   aiUtilizationRate: number | null;
   labels: string[];
   url: string;
@@ -64,11 +65,23 @@ const extractAiUtilizationRate = (labels: string[]): number | null => {
   return match ? parseInt(match[1], 10) : null;
 };
 
+const calculateLeadTimeDays = (createdAt: Date, mergedAt: Date | null): number | null => {
+  if (!mergedAt) return null;
+
+  const timeDiffMs = mergedAt.getTime() - createdAt.getTime();
+  const timeDiffDays = timeDiffMs / (1000 * 60 * 60 * 24);
+
+  return Math.round(timeDiffDays * 10) / 10; // 小数点1桁まで
+};
+
 
 const transformPullRequest = (
   pr: any,
   repository: Repository
 ): PullRequestData => {
+  const createdAt = new Date(pr.created_at);
+  const mergedAt = pr.merged_at ? new Date(pr.merged_at) : null;
+
   return {
     number: pr.number,
     title: pr.title,
@@ -76,15 +89,16 @@ const transformPullRequest = (
     author: pr.user.login,
     repository: `${repository.owner}/${repository.repo}`,
     state: determinePrState(pr),
-    createdAt: new Date(pr.created_at),
+    createdAt,
     updatedAt: new Date(pr.updated_at),
-    mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
+    mergedAt,
     closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
     aiUtilizationRate: extractAiUtilizationRate(
       pr.labels.map((l: any) => l.name)
     ),
     labels: pr.labels.map((l: any) => l.name),
     url: pr.html_url,
+    leadTimeDays: calculateLeadTimeDays(createdAt, mergedAt),
   };
 };
 
@@ -192,6 +206,7 @@ const generateCSV = (prs: PullRequestData[]): string => {
     "Updated At",
     "Merged At",
     "Closed At",
+    "Lead Time (Days)",
     "AI Utilization Rate (%)",
     "Labels",
     "URL",
@@ -208,6 +223,7 @@ const generateCSV = (prs: PullRequestData[]): string => {
     formatDateTime(pr.updatedAt),
     pr.mergedAt ? formatDateTime(pr.mergedAt) : "",
     pr.closedAt ? formatDateTime(pr.closedAt) : "",
+    pr.leadTimeDays?.toString() ?? "",
     pr.aiUtilizationRate?.toString() ?? "",
     `"${pr.labels.join("; ")}"`,
     pr.url,
