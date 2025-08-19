@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { TZDate } from "@date-fns/tz";
 import { addDays } from "date-fns";
 
 // .envファイルを読み込み
@@ -79,8 +80,8 @@ const transformPullRequest = (
   pr: any,
   repository: Repository
 ): PullRequestData => {
-  const createdAt = new Date(pr.created_at);
-  const mergedAt = pr.merged_at ? new Date(pr.merged_at) : null;
+  const createdAt = new TZDate(pr.created_at, "Asia/Tokyo");
+  const mergedAt = pr.merged_at ? new TZDate(pr.merged_at, "Asia/Tokyo") : null;
 
   return {
     number: pr.number,
@@ -90,9 +91,9 @@ const transformPullRequest = (
     repository: `${repository.owner}/${repository.repo}`,
     state: determinePrState(pr),
     createdAt,
-    updatedAt: new Date(pr.updated_at),
+    updatedAt: new TZDate(pr.updated_at, "Asia/Tokyo"),
     mergedAt,
-    closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
+    closedAt: pr.closed_at ? new TZDate(pr.closed_at, "Asia/Tokyo") : null,
     aiUtilizationRate: extractAiUtilizationRate(
       pr.labels.map((l: any) => l.name)
     ),
@@ -125,17 +126,15 @@ const fetchPullRequests = async (
     if (prs.length === 0) break;
 
     // 最新のPRが開始日より前なら以降は全て期間外
-    const latestPrDate = new Date(prs[0].created_at);
+    const latestPrDate = new TZDate(prs[0].created_at, "Asia/Tokyo");
     if (latestPrDate < dateRange.start) {
       break;
     }
 
     // created_atベースで指定した期間内でフィルタ
     const relevantPrs = prs.filter((pr) => {
-      const createdAt = new Date(pr.created_at);
-      // 終了日の23:59:59まで含めるために1日追加
-      const endDate = addDays(dateRange.end, 1);
-      return createdAt >= dateRange.start && createdAt <= endDate;
+      const createdAt = new TZDate(pr.created_at, "Asia/Tokyo");
+      return createdAt >= dateRange.start && createdAt <= dateRange.end;
     });
     allPrs.push(...relevantPrs);
     page++;
@@ -180,7 +179,17 @@ const fetchAllPullRequests = async (
 
 // CSV生成関数群
 const formatDateTime = (date: Date): string => {
-  return date.toISOString().replace("T", " ").replace("Z", "");
+  // TZDateの場合はそのまま、Dateの場合はJSTに変換
+  let targetDate: TZDate;
+  if (date instanceof TZDate) {
+    targetDate = date;
+  } else {
+    targetDate = new TZDate(date, "Asia/Tokyo");
+  }
+  
+  // YYYY-MM-DD hh:mm:ss形式で出力
+  // TZDateの場合は+09:00形式なので、それに対応
+  return targetDate.toISOString().replace('T', ' ').replace(/\.\d{3}(\+09:00|Z)$/, '');
 };
 
 const sanitizeBodyText = (body: string): string => {
@@ -341,8 +350,8 @@ const loadConfigFromEnv = (): Config => {
   return {
     repositories,
     dateRange: {
-      start: new Date(startDate),
-      end: new Date(endDate),
+      start: new TZDate(`${startDate}T00:00:00`, "Asia/Tokyo"),
+      end: new TZDate(`${endDate}T23:59:59`, "Asia/Tokyo"),
     },
     outputPath,
     githubToken,
