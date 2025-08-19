@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { addDays } from "date-fns";
 
 // .envファイルを読み込み
 dotenv.config();
@@ -109,21 +110,19 @@ const fetchPullRequests = async (
 
     if (prs.length === 0) break;
 
-    // created_atベースで早期終了判定
-    const oldestPrDate = new Date(prs[prs.length - 1].created_at);
-    if (oldestPrDate < dateRange.start) {
-      // このページで期間内のPRのみを追加
-      const relevantPrs = prs.filter(
-        (pr) => new Date(pr.created_at) >= dateRange.start
-      );
-      allPrs.push(...relevantPrs);
+    // 最新のPRが開始日より前なら以降は全て期間外
+    const latestPrDate = new Date(prs[0].created_at);
+    if (latestPrDate < dateRange.start) {
       break;
     }
 
-    // 期間内のPRのみを追加（終了日チェック）
-    const relevantPrs = prs.filter(
-      (pr) => new Date(pr.created_at) <= dateRange.end
-    );
+    // created_atベースで指定した期間内でフィルタ
+    const relevantPrs = prs.filter((pr) => {
+      const createdAt = new Date(pr.created_at);
+      // 終了日の23:59:59まで含めるために1日追加
+      const endDate = addDays(dateRange.end, 1);
+      return createdAt >= dateRange.start && createdAt <= endDate;
+    });
     allPrs.push(...relevantPrs);
     page++;
   }

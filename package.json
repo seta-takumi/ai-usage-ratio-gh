@@ -18,6 +18,7 @@
   "description": "",
   "dependencies": {
     "@octokit/rest": "^22.0.0",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.1"
   },
   "devDependencies": {
