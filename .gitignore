@@ -6,6 +6,10 @@
 .vscode/
 .idea/
 
+# config files
+.mise.toml
+mise.toml
+
 # Node.js (if using)
 node_modules/
 npm-debug.log*
