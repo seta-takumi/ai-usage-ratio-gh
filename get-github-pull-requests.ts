@@ -165,8 +165,8 @@ const fetchAllPullRequests = async (
 };
 
 // CSV生成関数群
-const formatDate = (date: Date): string => {
-  return date.toISOString().split("T")[0];
+const formatDateTime = (date: Date): string => {
+  return date.toISOString().replace("T", " ").replace("Z", "");
 };
 
 const sanitizeBodyText = (body: string): string => {
@@ -204,10 +204,10 @@ const generateCSV = (prs: PullRequestData[]): string => {
     pr.author,
     pr.repository,
     pr.state,
-    formatDate(pr.createdAt),
-    formatDate(pr.updatedAt),
-    pr.mergedAt ? formatDate(pr.mergedAt) : "",
-    pr.closedAt ? formatDate(pr.closedAt) : "",
+    formatDateTime(pr.createdAt),
+    formatDateTime(pr.updatedAt),
+    pr.mergedAt ? formatDateTime(pr.mergedAt) : "",
+    pr.closedAt ? formatDateTime(pr.closedAt) : "",
     pr.aiUtilizationRate?.toString() ?? "",
     `"${pr.labels.join("; ")}"`,
     pr.url,
@@ -273,7 +273,7 @@ const processPullRequests = async (config: Config): Promise<void> => {
       .join(", ")}`
   );
   console.log(
-    `📅 期間: ${formatDate(config.dateRange.start)} 〜 ${formatDate(
+    `📅 期間: ${formatDateTime(config.dateRange.start)} 〜 ${formatDateTime(
       config.dateRange.end
     )}`
   );
