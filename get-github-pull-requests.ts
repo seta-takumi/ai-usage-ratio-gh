@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { addDays } from "date-fns";
 
 // .envファイルを読み込み
 dotenv.config();
@@ -119,7 +120,7 @@ const fetchPullRequests = async (
     const relevantPrs = prs.filter((pr) => {
       const createdAt = new Date(pr.created_at);
       // 終了日の23:59:59まで含めるために1日追加
-      const endDate = new Date(new Date(dateRange.end).setDate(new Date(dateRange.end).getDate() + 1));
+      const endDate = addDays(dateRange.end, 1);
       return createdAt >= dateRange.start && createdAt <= endDate;
     });
     allPrs.push(...relevantPrs);
