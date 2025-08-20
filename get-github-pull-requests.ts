@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { TZDate } from "@date-fns/tz";
 import { addDays } from "date-fns";
 
 // .envファイルを読み込み
@@ -30,6 +31,7 @@ interface PullRequestData {
   updatedAt: Date;
   mergedAt: Date | null;
   closedAt: Date | null;
+  leadTimeDays: number | null;
   aiUtilizationRate: number | null;
   labels: string[];
   url: string;
@@ -64,11 +66,23 @@ const extractAiUtilizationRate = (labels: string[]): number | null => {
   return match ? parseInt(match[1], 10) : null;
 };
 
+const calculateLeadTimeDays = (createdAt: Date, mergedAt: Date | null): number | null => {
+  if (!mergedAt) return null;
+
+  const timeDiffMs = mergedAt.getTime() - createdAt.getTime();
+  const timeDiffDays = timeDiffMs / (1000 * 60 * 60 * 24);
+
+  return Math.round(timeDiffDays * 10) / 10; // 小数点1桁まで
+};
+
 
 const transformPullRequest = (
   pr: any,
   repository: Repository
 ): PullRequestData => {
+  const createdAt = new TZDate(pr.created_at, "Asia/Tokyo");
+  const mergedAt = pr.merged_at ? new TZDate(pr.merged_at, "Asia/Tokyo") : null;
+
   return {
     number: pr.number,
     title: pr.title,
@@ -76,15 +90,16 @@ const transformPullRequest = (
     author: pr.user.login,
     repository: `${repository.owner}/${repository.repo}`,
     state: determinePrState(pr),
-    createdAt: new Date(pr.created_at),
-    updatedAt: new Date(pr.updated_at),
-    mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
-    closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
+    createdAt,
+    updatedAt: new TZDate(pr.updated_at, "Asia/Tokyo"),
+    mergedAt,
+    closedAt: pr.closed_at ? new TZDate(pr.closed_at, "Asia/Tokyo") : null,
     aiUtilizationRate: extractAiUtilizationRate(
       pr.labels.map((l: any) => l.name)
     ),
     labels: pr.labels.map((l: any) => l.name),
     url: pr.html_url,
+    leadTimeDays: calculateLeadTimeDays(createdAt, mergedAt),
   };
 };
 
@@ -111,17 +126,15 @@ const fetchPullRequests = async (
     if (prs.length === 0) break;
 
     // 最新のPRが開始日より前なら以降は全て期間外
-    const latestPrDate = new Date(prs[0].created_at);
+    const latestPrDate = new TZDate(prs[0].created_at, "Asia/Tokyo");
     if (latestPrDate < dateRange.start) {
       break;
     }
 
     // created_atベースで指定した期間内でフィルタ
     const relevantPrs = prs.filter((pr) => {
-      const createdAt = new Date(pr.created_at);
-      // 終了日の23:59:59まで含めるために1日追加
-      const endDate = addDays(dateRange.end, 1);
-      return createdAt >= dateRange.start && createdAt <= endDate;
+      const createdAt = new TZDate(pr.created_at, "Asia/Tokyo");
+      return createdAt >= dateRange.start && createdAt <= dateRange.end;
     });
     allPrs.push(...relevantPrs);
     page++;
@@ -165,8 +178,18 @@ const fetchAllPullRequests = async (
 };
 
 // CSV生成関数群
-const formatDate = (date: Date): string => {
-  return date.toISOString().split("T")[0];
+const formatDateTime = (date: Date): string => {
+  // TZDateの場合はそのまま、Dateの場合はJSTに変換
+  let targetDate: TZDate;
+  if (date instanceof TZDate) {
+    targetDate = date;
+  } else {
+    targetDate = new TZDate(date, "Asia/Tokyo");
+  }
+  
+  // YYYY-MM-DD hh:mm:ss形式で出力
+  // Asia/Tokyoタイムゾーン（+09:00）でローカル時刻を出力
+  return targetDate.toISOString().replace('T', ' ').replace(/\.\d{3}(Z|[+-]\d{2}:\d{2})$/, '');
 };
 
 const sanitizeBodyText = (body: string): string => {
@@ -192,6 +215,7 @@ const generateCSV = (prs: PullRequestData[]): string => {
     "Updated At",
     "Merged At",
     "Closed At",
+    "Lead Time (Days)",
     "AI Utilization Rate (%)",
     "Labels",
     "URL",
@@ -204,10 +228,11 @@ const generateCSV = (prs: PullRequestData[]): string => {
     pr.author,
     pr.repository,
     pr.state,
-    formatDate(pr.createdAt),
-    formatDate(pr.updatedAt),
-    pr.mergedAt ? formatDate(pr.mergedAt) : "",
-    pr.closedAt ? formatDate(pr.closedAt) : "",
+    formatDateTime(pr.createdAt),
+    formatDateTime(pr.updatedAt),
+    pr.mergedAt ? formatDateTime(pr.mergedAt) : "",
+    pr.closedAt ? formatDateTime(pr.closedAt) : "",
+    pr.leadTimeDays?.toString() ?? "",
     pr.aiUtilizationRate?.toString() ?? "",
     `"${pr.labels.join("; ")}"`,
     pr.url,
@@ -273,7 +298,7 @@ const processPullRequests = async (config: Config): Promise<void> => {
       .join(", ")}`
   );
   console.log(
-    `📅 期間: ${formatDate(config.dateRange.start)} 〜 ${formatDate(
+    `📅 期間: ${formatDateTime(config.dateRange.start)} 〜 ${formatDateTime(
       config.dateRange.end
     )}`
   );
@@ -325,8 +350,8 @@ const loadConfigFromEnv = (): Config => {
   return {
     repositories,
     dateRange: {
-      start: new Date(startDate),
-      end: new Date(endDate),
+      start: new TZDate(`${startDate}T00:00:00`, "Asia/Tokyo"),
+      end: new TZDate(`${endDate}T23:59:59`, "Asia/Tokyo"),
     },
     outputPath,
     githubToken,

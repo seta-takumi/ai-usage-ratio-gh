@@ -16,6 +16,27 @@ GitHub のプルリクエストから AI 利用率を分析し、CSV 形式で�
 - GitHub Personal Access Token
 - GitHub CLI（ラベル作成時）
 
+### GitHub CLI セットアップ
+
+ラベル作成機能を使用するには GitHub CLI が必要です：
+
+```bash
+# インストール
+# 詳細は公式ドキュメントを参照: https://github.com/cli/cli?tab=readme-ov-file#installation
+
+# Homebrew (macOS/Linux)
+brew install gh
+
+# 認証（初回のみ）
+gh auth login
+
+# Personal Access Token を環境変数に設定
+export GH_TOKEN=$(gh auth token)
+
+# SAML SSO 環境の場合は追加で認証更新
+gh auth refresh -s repo
+```
+
 ## 🔧 インストール
 
 ```bash
@@ -31,11 +52,19 @@ npm install
 
 ### 1. 環境変数の設定
 
-`.env`ファイルを作成して以下の環境変数を設定：
+GitHub CLI を使用している場合、token を自動取得できます：
+
+```bash
+# GitHub CLI の token を環境変数に設定
+export GH_TOKEN=$(gh auth token)
+```
+
+または `.env` ファイルを作成して設定：
 
 ```env
 # GitHub Personal Access Token
-GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# GitHub CLI使用時: export GH_TOKEN=$(gh auth token) で自動設定可能
+GH_TOKEN=gho_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # 対象リポジトリ（カンマ区切りで複数指定可能）
 GITHUB_REPOSITORIES=owner1/repo1,owner2/repo2

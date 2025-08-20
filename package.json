@@ -17,6 +17,7 @@
   "homepage": "https://github.com/seta-takumi/ai-usage-ratio#readme",
   "description": "",
   "dependencies": {
+    "@date-fns/tz": "^1.4.1",
     "@octokit/rest": "^22.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1"
