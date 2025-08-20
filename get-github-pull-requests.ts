@@ -188,8 +188,8 @@ const formatDateTime = (date: Date): string => {
   }
   
   // YYYY-MM-DD hh:mm:ss形式で出力
-  // TZDateの場合は+09:00形式なので、それに対応
-  return targetDate.toISOString().replace('T', ' ').replace(/\.\d{3}(\+09:00|Z)$/, '');
+  // Asia/Tokyoタイムゾーン（+09:00）でローカル時刻を出力
+  return targetDate.toISOString().replace('T', ' ').replace(/\.\d{3}(Z|[+-]\d{2}:\d{2})$/, '');
 };
 
 const sanitizeBodyText = (body: string): string => {
