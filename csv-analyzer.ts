@@ -188,7 +188,7 @@ export class CSVAnalyzer {
 
     categories.forEach(category => {
       const categoryPRs = rows.filter(pr => 
-        pr.lead_time_days > category.min && pr.lead_time_days <= category.max
+        pr.lead_time_days >= category.min && pr.lead_time_days <= category.max
       );
 
       if (categoryPRs.length === 0) {
@@ -197,12 +197,12 @@ export class CSVAnalyzer {
       }
 
       console.log(`\n${category.name}: ${categoryPRs.length}件`);
-      
+
       // リードタイムの短い順に表示（上位5件まで）
       categoryPRs.slice(0, 5).forEach(pr => {
         console.log(`\n  📋 PR #${pr.Number} (${pr.lead_time_days}日) - ${pr.Repository}`);
         console.log(`     タイトル: ${pr.Title}`);
-        
+
         const bodySummary = this.summarizeBody(pr.Body);
         console.log(`     内容: ${bodySummary}`);
       });
@@ -213,7 +213,7 @@ export class CSVAnalyzer {
     });
 
     // 統計サマリー
-    const repoStats = rows.reduce((acc, pr) => {
+    const repoStats = rows.reduce<Record<string, { total: number; sum: number; min: number; max: number }>>((acc, pr) => {
       if (!acc[pr.Repository]) {
         acc[pr.Repository] = { total: 0, sum: 0, min: Infinity, max: 0 };
       }
@@ -222,7 +222,7 @@ export class CSVAnalyzer {
       acc[pr.Repository].min = Math.min(acc[pr.Repository].min, pr.lead_time_days);
       acc[pr.Repository].max = Math.max(acc[pr.Repository].max, pr.lead_time_days);
       return acc;
-    }, {} as Record<string, { total: number; sum: number; min: number; max: number }>);
+    }, {});
 
     console.log("\n📊 リポジトリ別統計サマリー:");
     Object.entries(repoStats).forEach(([repo, stats]) => {
@@ -233,7 +233,7 @@ export class CSVAnalyzer {
 
   private displayAIvsLeadTimeAnalysis(rows: any[]): void {
     console.log("\n🤖⚡ AI利用率 vs リードタイム相関分析:");
-    
+
     // カテゴリ別にグループ化
     const aiHighRows = rows.filter(row => row.ai_category === 'AI高利用率（50%以上）');
     const aiLowRows = rows.filter(row => row.ai_category === 'AI低利用率（0-49%）');
@@ -241,11 +241,11 @@ export class CSVAnalyzer {
     // 統計計算
     const calculateStats = (data: any[]) => {
       if (data.length === 0) return null;
-      
+
       const leadTimes = data.map(row => row.lead_time_days).sort((a, b) => a - b);
       const sum = leadTimes.reduce((acc, val) => acc + val, 0);
       const avg = sum / leadTimes.length;
-      const median = leadTimes.length % 2 === 0 
+      const median = leadTimes.length % 2 === 0
         ? (leadTimes[leadTimes.length / 2 - 1] + leadTimes[leadTimes.length / 2]) / 2
         : leadTimes[Math.floor(leadTimes.length / 2)];
 
@@ -269,7 +269,7 @@ export class CSVAnalyzer {
       console.log(`     - 平均: ${aiHighStats.avg.toFixed(1)}日`);
       console.log(`     - 中央値: ${aiHighStats.median.toFixed(1)}日`);
       console.log(`     - 範囲: ${aiHighStats.min.toFixed(1)}日 〜 ${aiHighStats.max.toFixed(1)}日`);
-      
+
       console.log(`\n   📋 個別PR詳細:`);
       aiHighStats.data.forEach(pr => {
         console.log(`     • PR #${pr.Number} (AI${pr.ai_rate}%, ${pr.lead_time_days.toFixed(1)}日) - ${pr.Repository}`);
@@ -279,14 +279,14 @@ export class CSVAnalyzer {
       console.log(`\n🚀 AI高利用率グループ（50%以上）: 0件`);
     }
 
-    // AI低利用率グループの結果表示  
+    // AI低利用率グループの結果表示
     if (aiLowStats) {
       console.log(`\n🛠️ AI低利用率グループ（0-49%）: ${aiLowStats.count}件`);
       console.log(`   📊 リードタイム統計:`);
       console.log(`     - 平均: ${aiLowStats.avg.toFixed(1)}日`);
       console.log(`     - 中央値: ${aiLowStats.median.toFixed(1)}日`);
       console.log(`     - 範囲: ${aiLowStats.min.toFixed(1)}日 〜 ${aiLowStats.max.toFixed(1)}日`);
-      
+
       console.log(`\n   📋 個別PR詳細:`);
       aiLowStats.data.forEach(pr => {
         console.log(`     • PR #${pr.Number} (AI${pr.ai_rate}%, ${pr.lead_time_days.toFixed(1)}日) - ${pr.Repository}`);
@@ -301,10 +301,10 @@ export class CSVAnalyzer {
       console.log(`\n📈 比較分析:`);
       const avgDiff = aiHighStats.avg - aiLowStats.avg;
       const medianDiff = aiHighStats.median - aiLowStats.median;
-      
+
       console.log(`   🎯 平均リードタイム差: ${avgDiff > 0 ? '+' : ''}${avgDiff.toFixed(1)}日`);
       console.log(`   🎯 中央値リードタイム差: ${medianDiff > 0 ? '+' : ''}${medianDiff.toFixed(1)}日`);
-      
+
       if (Math.abs(avgDiff) < 1) {
         console.log(`   💡 結論: AI利用率とリードタイムに大きな相関は見られない`);
       } else if (avgDiff > 0) {
