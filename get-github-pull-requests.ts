@@ -4,7 +4,6 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { TZDate } from "@date-fns/tz";
-import { addDays } from "date-fns";
 
 // .envファイルを読み込み
 dotenv.config();
