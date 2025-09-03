@@ -4,7 +4,6 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { TZDate } from "@date-fns/tz";
-import { addDays } from "date-fns";
 
 // .envファイルを読み込み
 dotenv.config();
@@ -167,7 +166,7 @@ const fetchAllPullRequests = async (
       console.error(`  ❌ ${repo.owner}/${repo.repo} の取得に失敗:`, error);
     }
 
-    // API制限を考慮して少し待機
+    // API制限を考慮して指定のmsec待機
     await new Promise((resolve) => setTimeout(resolve, API_DELAY_MS));
   }
 
@@ -200,7 +199,7 @@ const sanitizeBodyText = (body: string): string => {
     .replace(/\r?\n/g, " ")
     .replace(/"/g, '""')
     .trim()
-    .substring(0, BODY_TEXT_TRUNCATE_LENGTH); // 長すぎる場合はBODY_TEXT_TRUNCATE_LENGTH文字で切り詰め
+    .substring(0, BODY_TEXT_TRUNCATE_LENGTH); // 長すぎる場合は指定の文字数で切り詰め
 };
 
 const generateCSV = (prs: PullRequestData[]): string => {
