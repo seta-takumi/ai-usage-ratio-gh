@@ -65,8 +65,8 @@ const extractAiUtilizationRate = (labels: string[]): number | null => {
   return match ? parseInt(match[1], 10) : null;
 };
 
-const calculateLeadTimeDays = (createdAt: Date, mergedAt: Date | null): number | null => {
-  if (!mergedAt) return null;
+const calculateLeadTimeDays = (createdAt: Date, mergedAt: Date | null, hasAiLabel: boolean): number | null => {
+  if (!mergedAt || !hasAiLabel) return null;
 
   const timeDiffMs = mergedAt.getTime() - createdAt.getTime();
   const timeDiffDays = timeDiffMs / (1000 * 60 * 60 * 24);
@@ -81,6 +81,9 @@ const transformPullRequest = (
 ): PullRequestData => {
   const createdAt = new TZDate(pr.created_at, "Asia/Tokyo");
   const mergedAt = pr.merged_at ? new TZDate(pr.merged_at, "Asia/Tokyo") : null;
+  const labels = pr.labels.map((l: any) => l.name);
+  const aiUtilizationRate = extractAiUtilizationRate(labels);
+  const hasAiLabel = aiUtilizationRate !== null;
 
   return {
     number: pr.number,
@@ -93,12 +96,10 @@ const transformPullRequest = (
     updatedAt: new TZDate(pr.updated_at, "Asia/Tokyo"),
     mergedAt,
     closedAt: pr.closed_at ? new TZDate(pr.closed_at, "Asia/Tokyo") : null,
-    aiUtilizationRate: extractAiUtilizationRate(
-      pr.labels.map((l: any) => l.name)
-    ),
-    labels: pr.labels.map((l: any) => l.name),
+    aiUtilizationRate,
+    labels,
     url: pr.html_url,
-    leadTimeDays: calculateLeadTimeDays(createdAt, mergedAt),
+    leadTimeDays: calculateLeadTimeDays(createdAt, mergedAt, hasAiLabel),
   };
 };
 
