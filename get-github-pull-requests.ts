@@ -329,10 +329,10 @@ const loadConfigFromEnv = (): Config => {
   const startDate = process.env.START_DATE || "";
   const endDate = process.env.END_DATE || "";
   const outputPath = process.env.OUTPUT_PATH || "./output/pull_requests.csv";
-  const githubToken = process.env.GH_TOKEN || "";
+  const githubToken = process.env.GITHUB_TOKEN || "";
 
   if (!githubToken) {
-    throw new Error("GH_TOKEN環境変数が設定されていません");
+    throw new Error("GITHUB_TOKEN環境変数が設定されていません");
   }
 
   if (repositories.length === 0) {
@@ -383,7 +383,7 @@ const main = async (): Promise<void> => {
   } catch (error) {
     console.error("❌ 設定エラー:", error);
     console.log("\n📋 必要な環境変数:");
-    console.log("  GH_TOKEN: GitHubのPersonal Access Token");
+    console.log("  GITHUB_TOKEN: GitHubのPersonal Access Token");
     console.log(
       '  GITHUB_REPOSITORIES: 対象リポジトリ (例: "owner1/repo1,owner2/repo2")'
     );
