@@ -32,8 +32,8 @@ npm test
 
 このツールは以下の環境変数を必要とします：
 
-- `GH_TOKEN` - GitHubのPersonal Access Token
-- `GITHUB_REPOSITORIES` - 対象リポジトリ（例：`"owner1/repo1,owner2/repo2"`）  
+- `GITHUB_TOKEN` - GitHubのPersonal Access Token
+- `GITHUB_REPOSITORIES` - 対象リポジトリ（例：`"owner1/repo1,owner2/repo2"`）
 - `START_DATE` - 開始日（例：`"2024-01-01"`）
 - `END_DATE` - 終了日（例：`"2024-12-31"`）
 - `OUTPUT_PATH` - 出力パス（オプション、デフォルト：`"./output/pull_requests.csv"`）
