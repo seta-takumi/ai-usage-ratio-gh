@@ -9,23 +9,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 主要ファイル構成
 
 - `get-github-pull-requests.ts` - メインのTypeScriptファイル。GitHub API経由でPRデータを取得し、AI利用率ラベルを解析してCSV出力
+- `csv-analyzer.ts` - CSV分析ツール。出力されたCSVファイルからAI使用率統計、リードタイム分析、相関分析を実行
 - `create_ai_labels.sh` - GitHub リポジトリにAI利用率ラベル（AI0%〜AI100%、5%刻み）を作成するBashスクリプト
 - `package.json` - Node.js プロジェクトの設定ファイル
+- `.claude/commands/analyze-csv.md` - Claude Codeカスタムコマンド（/analyze-csv）の定義
 
 ## 開発コマンド
 
 ```bash
-# TypeScriptファイルを実行
+# PRデータ取得
 npx tsx get-github-pull-requests.ts
 
-# 依存関係のインストール
-npm install
+# CSV分析実行
+npx tsx csv-analyzer.ts <CSVファイルパス>
+
+# 依存関係のインストール（pnpm推奨）
+pnpm install
+
+# ビルドスクリプト承認（初回のみ）
+pnpm approve-builds
 
 # AI利用率ラベル作成（Bashスクリプト）
 ./create_ai_labels.sh [owner/repository]
 
-# テスト実行（現在は未定義）
-npm test
+# Claude Codeカスタムコマンド
+/analyze-csv  # 最新CSVの分析と要約表示
 ```
 
 ## 環境設定
@@ -70,21 +78,48 @@ npm test
 ## 使用する依存関係
 
 - `@octokit/rest` - GitHub API クライアント
+- `duckdb` - CSV分析用の高速データベースエンジン
 - `dotenv` - 環境変数管理
+- `@date-fns/tz` - タイムゾーン対応の日付処理
 - Node.js標準ライブラリ（fs/promises、path）
 
 ## プロジェクト実行前の準備
 
 1. 環境変数の設定（`.env`ファイルまたはシェル環境）
-2. `npm install`で依存関係をインストール
-3. 必要に応じて`./create_ai_labels.sh`でAI利用率ラベルを作成
+2. `pnpm install`で依存関係をインストール
+3. `pnpm approve-builds`でduckdbとesbuildのビルドを承認（初回のみ）
+4. 必要に応じて`./create_ai_labels.sh`でAI利用率ラベルを作成
 
 ## 実行方法
 
 ```bash
-# TypeScriptファイルを実行（実際の推奨方法）
+# PRデータ取得・CSV出力
 npx tsx get-github-pull-requests.ts
+
+# CSV分析
+npx tsx csv-analyzer.ts ./output/pull_requests.csv
 
 # AI利用率ラベル作成
 ./create_ai_labels.sh [owner/repository]
+
+# Claude Codeで要約分析（推奨）
+/analyze-csv
 ```
+
+## CSV分析機能
+
+`csv-analyzer.ts`は以下の分析を提供します：
+
+1. **AI使用率グループ別統計** - AI利用率を4段階（0-25%、25-49%、50-74%、75-100%）に分類して集計
+2. **リードタイム分析** - マージ済みPRの作成からマージまでの時間を分析
+3. **AI利用率とリードタイムの相関分析** - AI高利用率（50%以上）と低利用率（0-49%）でリードタイムを比較
+
+### Claude Codeカスタムコマンド
+
+`/analyze-csv`コマンドは以下を自動実行します：
+
+1. 最新のCSVファイルを特定
+2. `csv-analyzer.ts`を実行して統計を取得
+3. AI使用率グループ別統計を要約形式で表示
+   - PRタイトルを汎用化して簡潔にまとめる
+   - 同種の作業を「×N」形式でまとめる
