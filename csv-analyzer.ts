@@ -5,17 +5,6 @@ import * as path from "path";
 
 dotenv.config();
 
-interface AIUsageStats {
-  ai_group: string;
-  count: number;
-  Repository: string;
-}
-
-interface GroupSummary {
-  total: number;
-  repos: string[];
-}
-
 export class CSVAnalyzer {
   private db: duckdb.Database;
 
@@ -66,7 +55,7 @@ export class CSVAnalyzer {
 
   private displayAIUsageWithDetails(rows: any[]): void {
     console.log("\n🔥 AI使用率グループ別統計:");
-    
+
     const groupedPRs = rows.reduce((acc, row) => {
       if (!acc[row.ai_group]) {
         acc[row.ai_group] = [];
@@ -77,7 +66,7 @@ export class CSVAnalyzer {
 
     const groupOrder = [
       '高利用率グループ（75%-100%）',
-      '中高利用率グループ（50%-74%）', 
+      '中高利用率グループ（50%-74%）',
       '中低利用率グループ（25%-49%）',
       '低利用率グループ（0%-25%）'
     ];
@@ -90,11 +79,11 @@ export class CSVAnalyzer {
       }
 
       console.log(`\n🔥 ${group}: ${prs.length}件`);
-      
+
       prs.forEach(pr => {
         console.log(`\n  📋 PR #${pr.Number} (AI${pr.ai_rate}%) - ${pr.Repository}`);
         console.log(`     タイトル: ${pr.Title}`);
-        
+
         const bodySummary = this.summarizeBody(pr.Body);
         console.log(`     内容: ${bodySummary}`);
       });
@@ -177,7 +166,7 @@ export class CSVAnalyzer {
 
   private displayLeadTimeWithDetails(rows: any[]): void {
     console.log("\n⏱️ リードタイム分析（マージされたPRのみ）:");
-    
+
     // リードタイムでカテゴリ分け
     const categories = [
       { name: '⚡ 高速（1日以内）', min: 0, max: 1 },
