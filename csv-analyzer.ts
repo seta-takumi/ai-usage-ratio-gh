@@ -23,6 +23,7 @@ export class CSVAnalyzer {
           return;
         }
 
+        // Get all PRs with AI rates
         this.db.all(`
           SELECT
             Number,
@@ -34,7 +35,7 @@ export class CSVAnalyzer {
               WHEN TRY_CAST("AI Utilization Rate (%)" AS INTEGER) >= 75 THEN '高利用率グループ（75%-100%）'
               WHEN TRY_CAST("AI Utilization Rate (%)" AS INTEGER) >= 50 THEN '中高利用率グループ（50%-74%）'
               WHEN TRY_CAST("AI Utilization Rate (%)" AS INTEGER) >= 25 THEN '中低利用率グループ（25%-49%）'
-              WHEN TRY_CAST("AI Utilization Rate (%)" AS INTEGER) >= 0 THEN '低利用率グループ（0%-25%）'
+              WHEN TRY_CAST("AI Utilization Rate (%)" AS INTEGER) >= 0 THEN '低利用率グループ（0%-24%）'
               ELSE 'ラベルなし'
             END as ai_group
           FROM prs
@@ -46,14 +47,27 @@ export class CSVAnalyzer {
             return;
           }
 
-          this.displayAIUsageWithDetails(rows);
-          resolve();
+          // Get total PR count and unlabeled count
+          this.db.all(`
+            SELECT
+              CAST(COUNT(*) AS INTEGER) as total_prs,
+              CAST(SUM(CASE WHEN TRY_CAST("AI Utilization Rate (%)" AS INTEGER) IS NULL THEN 1 ELSE 0 END) AS INTEGER) as unlabeled_prs
+            FROM prs
+          `, (err: Error | null, statsRows: any[]) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            this.displayAIUsageWithDetails(rows, statsRows[0], csvPath);
+            resolve();
+          });
         });
       });
     });
   }
 
-  private displayAIUsageWithDetails(rows: any[]): void {
+  private displayAIUsageWithDetails(rows: any[], stats: any, csvPath: string): void {
     console.log("\n🔥 AI使用率グループ別統計:");
 
     const groupedPRs = rows.reduce((acc, row) => {
@@ -68,7 +82,7 @@ export class CSVAnalyzer {
       '高利用率グループ（75%-100%）',
       '中高利用率グループ（50%-74%）',
       '中低利用率グループ（25%-49%）',
-      '低利用率グループ（0%-25%）'
+      '低利用率グループ（0%-24%）'
     ];
 
     groupOrder.forEach(group => {
@@ -88,6 +102,147 @@ export class CSVAnalyzer {
         console.log(`     内容: ${bodySummary}`);
       });
     });
+
+    // Display summary statistics
+    this.displaySummaryStatistics(groupedPRs, stats, csvPath);
+  }
+
+  private displaySummaryStatistics(groupedPRs: Record<string, any[]>, stats: any, csvPath: string): void {
+    console.log("\n---");
+    console.log("\n📈 分析結果サマリー\n");
+
+    // Extract filename from path
+    const filename = csvPath.split('/').pop() || csvPath;
+
+    // Parse date range from filename if available (format: pull_requestsYYYYMMDD_YYYYMMDD.csv)
+    const dateMatch = filename.match(/(\d{8})_(\d{8})/);
+    let dateRange = "分析期間不明";
+    if (dateMatch) {
+      const startDate = dateMatch[1];
+      const endDate = dateMatch[2];
+      const formatDate = (d: string) => `${d.substring(0, 4)}年${d.substring(4, 6)}月${d.substring(6, 8)}日`;
+      dateRange = `${formatDate(startDate)}〜${formatDate(endDate)}`;
+    }
+
+    const totalPRs = stats.total_prs;
+    const labeledPRs = totalPRs - stats.unlabeled_prs;
+    const labeledPercent = totalPRs > 0 ? ((labeledPRs / totalPRs) * 100).toFixed(0) : 0;
+    const unlabeledPercent = totalPRs > 0 ? ((stats.unlabeled_prs / totalPRs) * 100).toFixed(0) : 0;
+
+    console.log(`- **分析期間**: ${dateRange}`);
+    console.log(`- **対象ファイル**: \`${filename}\``);
+    console.log(`- **総PR数**: ${totalPRs}件`);
+    console.log(`- **AI利用率ラベル付きPR**: ${labeledPRs}件（${labeledPercent}%）`);
+
+    // Display each group statistics
+    const groupLabels = [
+      { key: '高利用率グループ（75%-100%）', label: 'AI高利用率（75-100%）' },
+      { key: '中高利用率グループ（50%-74%）', label: 'AI中高利用率（50-74%）' },
+      { key: '中低利用率グループ（25%-49%）', label: 'AI中低利用率（25-49%）' },
+      { key: '低利用率グループ（0%-24%）', label: 'AI低利用率（0-24%）' }
+    ];
+
+    groupLabels.forEach(({ key, label }) => {
+      const prs = groupedPRs[key] || [];
+      const summary = this.summarizeGroupContent(prs);
+      console.log(`- **${label}**: ${prs.length}件${summary ? ` - ${summary}` : ''}`);
+    });
+
+    console.log(`- **ラベルなしPR**: ${stats.unlabeled_prs}件（${unlabeledPercent}%）`);
+
+    // Add trend analysis
+    const trend = this.analyzeTrend(groupedPRs);
+    if (trend) {
+      console.log(`- **主な傾向**: ${trend}`);
+    }
+  }
+
+  private summarizeGroupContent(prs: any[]): string {
+    if (prs.length === 0) return "";
+
+    // Extract key themes from titles
+    const titles = prs.map(pr => pr.Title);
+    const commonPatterns = [
+      { pattern: /(hotfix|HOTFIX|緊急|修正)/i, label: 'hotfix対応' },
+      { pattern: /(リリース|release)/i, label: 'リリース作業' },
+      { pattern: /(STG|stg|環境)/i, label: '環境設定' },
+      { pattern: /(Docker|docker|コンテナ)/i, label: 'Docker関連' },
+      { pattern: /(テスト|test)/i, label: 'テスト関連' },
+      { pattern: /(リファクタ|refactor)/i, label: 'リファクタリング' },
+      { pattern: /(ドキュメント|doc|コメント)/i, label: 'ドキュメント整備' }
+    ];
+
+    const themes = new Set<string>();
+    titles.forEach(title => {
+      for (const { pattern, label } of commonPatterns) {
+        if (pattern.test(title)) {
+          themes.add(label);
+        }
+      }
+    });
+
+    if (themes.size > 0) {
+      return Array.from(themes).slice(0, 2).join('、');
+    }
+
+    return "様々な開発作業";
+  }
+
+  private analyzeTrend(groupedPRs: Record<string, any[]>): string {
+    const highRate = (groupedPRs['高利用率グループ（75%-100%）'] || []).length;
+    const midHighRate = (groupedPRs['中高利用率グループ（50%-74%）'] || []).length;
+    const midLowRate = (groupedPRs['中低利用率グループ（25%-49%）'] || []).length;
+    const lowRate = (groupedPRs['低利用率グループ（0%-24%）'] || []).length;
+
+    const total = highRate + midHighRate + midLowRate + lowRate;
+    if (total === 0) return "";
+
+    const highRatePRs = groupedPRs['高利用率グループ（75%-100%）'] || [];
+    const lowRatePRs = groupedPRs['低利用率グループ（0%-24%）'] || [];
+
+    // Analyze what types of work have high vs low AI usage
+    const trends: string[] = [];
+
+    if (highRate > 0 && lowRate > 0) {
+      const highThemes = this.extractThemes(highRatePRs);
+      const lowThemes = this.extractThemes(lowRatePRs);
+
+      if (highThemes.length > 0) {
+        trends.push(`${highThemes[0]}でAI高活用`);
+      }
+      if (lowThemes.length > 0) {
+        trends.push(`${lowThemes[0]}でAI低活用`);
+      }
+    } else if (highRate > 0) {
+      trends.push("AI高活用のPRが中心");
+    } else if (lowRate > 0) {
+      trends.push("AI低活用のPRが中心");
+    }
+
+    return trends.join("、") || "データ量が少なく傾向分析は困難";
+  }
+
+  private extractThemes(prs: any[]): string[] {
+    if (prs.length === 0) return [];
+
+    const patterns = [
+      { pattern: /(Docker|Snowflake|環境設定|インフラ)/i, label: '複雑なインフラ設定' },
+      { pattern: /(hotfix|HOTFIX|緊急|修正)/i, label: '緊急対応' },
+      { pattern: /(manifest|設定ファイル|config)/i, label: '定型的な設定作業' },
+      { pattern: /(リファクタ|refactor)/i, label: 'リファクタリング' },
+      { pattern: /(コメント|ドキュメント)/i, label: 'ドキュメント整備' }
+    ];
+
+    const themes: string[] = [];
+    prs.forEach(pr => {
+      for (const { pattern, label } of patterns) {
+        if (pattern.test(pr.Title) && !themes.includes(label)) {
+          themes.push(label);
+        }
+      }
+    });
+
+    return themes;
   }
 
   private summarizeBody(body: string): string {
