@@ -199,8 +199,7 @@ const sanitizeBodyText = (body: string): string => {
   return body
     .replace(/\r?\n/g, " ")
     .replace(/"/g, '""')
-    .trim()
-    .substring(0, BODY_TEXT_TRUNCATE_LENGTH); // 長すぎる場合は指定の文字数で切り詰め
+    .trim();
 };
 
 const generateCSV = (prs: PullRequestData[]): string => {
