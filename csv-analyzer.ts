@@ -107,6 +107,24 @@ export class CSVAnalyzer {
     this.displaySummaryStatistics(groupedPRs, stats, csvPath);
   }
 
+  private calculateStatistics(rates: number[]): { avg: number; median: number; min: number; max: number } | null {
+    if (rates.length === 0) return null;
+
+    const sorted = [...rates].sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, val) => acc + val, 0);
+    const avg = sum / sorted.length;
+    const median = sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+
+    return {
+      avg,
+      median,
+      min: sorted[0],
+      max: sorted[sorted.length - 1]
+    };
+  }
+
   private displaySummaryStatistics(groupedPRs: Record<string, any[]>, stats: any, csvPath: string): void {
     console.log("\n---");
     console.log("\n📈 分析結果サマリー\n");
@@ -135,28 +153,18 @@ export class CSVAnalyzer {
     console.log(`- **AI利用率ラベル付きPR**: ${labeledPRs}件（${labeledPercent}%）`);
 
     // Calculate AI utilization rate statistics
-    const allAIRates: number[] = [];
-    Object.values(groupedPRs).forEach(prs => {
-      prs.forEach(pr => {
-        if (pr.ai_rate !== null && pr.ai_rate !== undefined) {
-          allAIRates.push(pr.ai_rate);
-        }
-      });
-    });
+    const allAIRates = Object.values(groupedPRs)
+      .flatMap(prs => prs)
+      .map(pr => pr.ai_rate)
+      .filter((rate): rate is number => rate !== null && rate !== undefined);
 
-    if (allAIRates.length > 0) {
-      const sortedRates = allAIRates.sort((a, b) => a - b);
-      const sum = sortedRates.reduce((acc, val) => acc + val, 0);
-      const avg = sum / sortedRates.length;
-      const median = sortedRates.length % 2 === 0
-        ? (sortedRates[sortedRates.length / 2 - 1] + sortedRates[sortedRates.length / 2]) / 2
-        : sortedRates[Math.floor(sortedRates.length / 2)];
-
+    const aiStats = this.calculateStatistics(allAIRates);
+    if (aiStats) {
       console.log(`\n📊 AI利用率統計:`);
-      console.log(`- **平均AI利用率**: ${avg.toFixed(1)}%`);
-      console.log(`- **中央値AI利用率**: ${median.toFixed(1)}%`);
-      console.log(`- **最小値**: ${sortedRates[0]}%`);
-      console.log(`- **最大値**: ${sortedRates[sortedRates.length - 1]}%`);
+      console.log(`- **平均AI利用率**: ${aiStats.avg.toFixed(1)}%`);
+      console.log(`- **中央値AI利用率**: ${aiStats.median.toFixed(1)}%`);
+      console.log(`- **最小値**: ${aiStats.min}%`);
+      console.log(`- **最大値**: ${aiStats.max}%`);
     }
 
     console.log(``);
