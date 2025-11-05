@@ -134,6 +134,33 @@ export class CSVAnalyzer {
     console.log(`- **総PR数**: ${totalPRs}件`);
     console.log(`- **AI利用率ラベル付きPR**: ${labeledPRs}件（${labeledPercent}%）`);
 
+    // Calculate AI utilization rate statistics
+    const allAIRates: number[] = [];
+    Object.values(groupedPRs).forEach(prs => {
+      prs.forEach(pr => {
+        if (pr.ai_rate !== null && pr.ai_rate !== undefined) {
+          allAIRates.push(pr.ai_rate);
+        }
+      });
+    });
+
+    if (allAIRates.length > 0) {
+      const sortedRates = allAIRates.sort((a, b) => a - b);
+      const sum = sortedRates.reduce((acc, val) => acc + val, 0);
+      const avg = sum / sortedRates.length;
+      const median = sortedRates.length % 2 === 0
+        ? (sortedRates[sortedRates.length / 2 - 1] + sortedRates[sortedRates.length / 2]) / 2
+        : sortedRates[Math.floor(sortedRates.length / 2)];
+
+      console.log(`\n📊 AI利用率統計:`);
+      console.log(`- **平均AI利用率**: ${avg.toFixed(1)}%`);
+      console.log(`- **中央値AI利用率**: ${median.toFixed(1)}%`);
+      console.log(`- **最小値**: ${sortedRates[0]}%`);
+      console.log(`- **最大値**: ${sortedRates[sortedRates.length - 1]}%`);
+    }
+
+    console.log(``);
+
     // Display each group statistics
     const groupLabels = [
       { key: '高利用率グループ（75%-100%）', label: 'AI高利用率（75-100%）' },
