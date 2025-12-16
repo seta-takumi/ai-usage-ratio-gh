@@ -107,6 +107,24 @@ export class CSVAnalyzer {
     this.displaySummaryStatistics(groupedPRs, stats, csvPath);
   }
 
+  private calculateStatistics(rates: number[]): { avg: number; median: number; min: number; max: number } | null {
+    if (rates.length === 0) return null;
+
+    const sorted = [...rates].sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, val) => acc + val, 0);
+    const avg = sum / sorted.length;
+    const median = sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+
+    return {
+      avg,
+      median,
+      min: sorted[0],
+      max: sorted[sorted.length - 1]
+    };
+  }
+
   private displaySummaryStatistics(groupedPRs: Record<string, any[]>, stats: any, csvPath: string): void {
     console.log("\n---");
     console.log("\n📈 分析結果サマリー\n");
@@ -133,6 +151,23 @@ export class CSVAnalyzer {
     console.log(`- **対象ファイル**: \`${filename}\``);
     console.log(`- **総PR数**: ${totalPRs}件`);
     console.log(`- **AI利用率ラベル付きPR**: ${labeledPRs}件（${labeledPercent}%）`);
+
+    // Calculate AI utilization rate statistics
+    const allAIRates = Object.values(groupedPRs)
+      .flatMap(prs => prs)
+      .map(pr => pr.ai_rate)
+      .filter((rate): rate is number => rate !== null && rate !== undefined);
+
+    const aiStats = this.calculateStatistics(allAIRates);
+    if (aiStats) {
+      console.log(`\n📊 AI利用率統計:`);
+      console.log(`- **平均AI利用率**: ${aiStats.avg.toFixed(1)}%`);
+      console.log(`- **中央値AI利用率**: ${aiStats.median.toFixed(1)}%`);
+      console.log(`- **最小値**: ${aiStats.min}%`);
+      console.log(`- **最大値**: ${aiStats.max}%`);
+    }
+
+    console.log(``);
 
     // Display each group statistics
     const groupLabels = [
