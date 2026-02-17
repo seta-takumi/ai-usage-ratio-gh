@@ -4,6 +4,7 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { TZDate } from "@date-fns/tz";
+import { subDays, set, format } from "date-fns";
 
 // .envファイルを読み込み
 dotenv.config();
@@ -322,14 +323,98 @@ const processPullRequests = async (config: Config): Promise<void> => {
   }
 };
 
+/**
+ * 相対的な日付範囲を生成する（実行日基準）
+ * - start: 実行日の7日前12:00:00（Asia/Tokyo）
+ * - end: 実行日の11:59:59（Asia/Tokyo）
+ * @returns DateRange オブジェクト
+ */
+const createRelativeDateRange = (): DateRange => {
+  const timezone = "Asia/Tokyo";
+  const now = new TZDate(new Date(), timezone);
+
+  // 実行日の7日前12:00:00（開始時刻）
+  const startDate = new TZDate(
+    set(subDays(now, 7), {
+      hours: 12,
+      minutes: 0,
+      seconds: 0,
+      milliseconds: 0,
+    }),
+    timezone
+  );
+
+  // 実行日の11:59:59（終了時刻）
+  const endDate = new TZDate(
+    set(now, {
+      hours: 11,
+      minutes: 59,
+      seconds: 59,
+      milliseconds: 0,
+    }),
+    timezone
+  );
+
+  return {
+    start: startDate,
+    end: endDate,
+  };
+};
+
+/**
+ * 絶対日付範囲を生成する（環境変数基準）
+ * - start: START_DATEの前日12:00:00（Asia/Tokyo）
+ * - end: END_DATEの11:59:59（Asia/Tokyo）
+ * @param startDateStr 開始日文字列（YYYY-MM-DD形式）
+ * @param endDateStr 終了日文字列（YYYY-MM-DD形式）
+ * @returns DateRange オブジェクト
+ */
+const createAbsoluteDateRange = (startDateStr: string, endDateStr: string): DateRange => {
+  const timezone = "Asia/Tokyo";
+
+  // START_DATEの前日12:00:00
+  const startDateBase = new TZDate(`${startDateStr}T00:00:00`, timezone);
+  const startDate = new TZDate(
+    set(subDays(startDateBase, 1), {
+      hours: 12,
+      minutes: 0,
+      seconds: 0,
+      milliseconds: 0,
+    }),
+    timezone
+  );
+
+  // END_DATEの11:59:59
+  const endDate = new TZDate(`${endDateStr}T11:59:59`, timezone);
+
+  return {
+    start: startDate,
+    end: endDate,
+  };
+};
+
+/**
+ * 日付範囲から出力ファイル名を生成
+ * 開始日と終了日を実際の日付（前日と当日）でフォーマット
+ * @param dateRange 日付範囲
+ * @returns ファイルパス文字列（例: "./output/pull_requests_20260216_20260217.csv"）
+ */
+const generateDefaultOutputPath = (dateRange: DateRange): string => {
+  const startStr = format(dateRange.start, "yyyyMMdd");
+  const endStr = format(dateRange.end, "yyyyMMdd");
+
+  return `./output/pull_requests_${startStr}_${endStr}.csv`;
+};
+
 // 環境変数からの設定読み込み
 const loadConfigFromEnv = (): Config => {
   const repositories = parseRepositories(process.env.GITHUB_REPOSITORIES || "");
-  const startDate = process.env.START_DATE || "";
-  const endDate = process.env.END_DATE || "";
-  const outputPath = process.env.OUTPUT_PATH || "./output/pull_requests.csv";
+  const startDateEnv = process.env.START_DATE || "";
+  const endDateEnv = process.env.END_DATE || "";
+  const outputPathEnv = process.env.OUTPUT_PATH || "";
   const githubToken = process.env.GITHUB_TOKEN || "";
 
+  // 必須項目のバリデーション
   if (!githubToken) {
     throw new Error("GITHUB_TOKEN環境変数が設定されていません");
   }
@@ -340,18 +425,30 @@ const loadConfigFromEnv = (): Config => {
     );
   }
 
-  if (!startDate || !endDate) {
-    throw new Error(
-      'START_DATE及びEND_DATE環境変数が設定されていません (例: "2024-01-01")'
-    );
+  // 環境変数の組み合わせバリデーション
+  if (startDateEnv && !endDateEnv) {
+    throw new Error("START_DATEが設定されている場合、END_DATEも必須です");
   }
+  if (!startDateEnv && endDateEnv) {
+    throw new Error("END_DATEが設定されている場合、START_DATEも必須です");
+  }
+
+  // 日付範囲の決定
+  let dateRange: DateRange;
+  if (startDateEnv && endDateEnv) {
+    // 絶対日付モード（新仕様: 指定日の前日12:00〜指定日11:59）
+    dateRange = createAbsoluteDateRange(startDateEnv, endDateEnv);
+  } else {
+    // 相対日付モード（新機能: 実行日の前日12:00〜実行日11:59）
+    dateRange = createRelativeDateRange();
+  }
+
+  // 出力パスの決定
+  const outputPath = outputPathEnv || generateDefaultOutputPath(dateRange);
 
   return {
     repositories,
-    dateRange: {
-      start: new TZDate(`${startDate}T00:00:00`, "Asia/Tokyo"),
-      end: new TZDate(`${endDate}T23:59:59`, "Asia/Tokyo"),
-    },
+    dateRange,
     outputPath,
     githubToken,
   };
@@ -381,15 +478,19 @@ const main = async (): Promise<void> => {
     config = loadConfigFromEnv();
   } catch (error) {
     console.error("❌ 設定エラー:", error);
-    console.log("\n📋 必要な環境変数:");
+    console.log("\n📋 必須環境変数:");
     console.log("  GITHUB_TOKEN: GitHubのPersonal Access Token");
     console.log(
       '  GITHUB_REPOSITORIES: 対象リポジトリ (例: "owner1/repo1,owner2/repo2")'
     );
-    console.log('  START_DATE: 開始日 (例: "2024-01-01")');
-    console.log('  END_DATE: 終了日 (例: "2024-12-31")');
+    console.log("\n📋 オプション環境変数（両方設定または両方未設定）:");
+    console.log('  START_DATE: 開始日（例: "2024-01-01"）');
+    console.log('    ※実際の開始は指定日の前日12:00:00（Asia/Tokyo）');
+    console.log('  END_DATE: 終了日（例: "2024-12-31"）');
+    console.log('    ※実際の終了は指定日の11:59:59（Asia/Tokyo）');
+    console.log('  ※未設定の場合: 実行日の7日前12:00〜実行日11:59のデータを取得');
     console.log(
-      '  OUTPUT_PATH: 出力パス (オプション、デフォルト: "./output/pull_requests.csv")'
+      '  OUTPUT_PATH: 出力パス（オプション、デフォルト: 日付から自動生成）'
     );
     console.log("\n💡 .envファイルでも設定可能です");
     process.exit(1);
