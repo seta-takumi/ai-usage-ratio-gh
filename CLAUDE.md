@@ -36,6 +36,37 @@ pnpm approve-builds
 /analyze-csv  # 最新CSVの分析と要約表示
 ```
 
+## GitHub関連コマンド
+
+```bash
+# PRのレビューコメント取得
+gh api /repos/{owner}/{repo}/pulls/{pull_number}/comments
+
+# 例: このリポジトリのPR #13のレビューコメント取得
+gh api /repos/seta-takumi/ai-usage-ratio-gh/pulls/13/comments
+
+# PRにコメント投稿（全体コメント）
+gh pr comment {pull_number} --body "コメント内容"
+
+# PRレビューコメントに返信（個別のコードコメント）
+gh api /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies -X POST -f body="返信内容"
+
+# 例: PR #13のコメント2819980231に返信
+gh api /repos/seta-takumi/ai-usage-ratio-gh/pulls/13/comments/2819980231/replies -X POST -f body="ご指摘ありがとうございます"
+
+# PRレビューコメントを削除
+gh api /repos/{owner}/{repo}/pulls/comments/{comment_id} -X DELETE
+
+# PRの説明文更新
+gh pr edit {pull_number} --body "$(cat <<'EOF'
+新しい説明文
+EOF
+)"
+
+# ISSUE作成
+gh issue create --title "タイトル" --body "本文" --label "label1,label2"
+```
+
 ## 環境設定
 
 このツールは以下の環境変数を使用します：
