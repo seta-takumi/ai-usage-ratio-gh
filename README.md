@@ -81,8 +81,11 @@ GITHUB_REPOSITORIES=owner1/repo1,owner2/repo2
 START_DATE=2026-02-11
 END_DATE=2026-02-17
 
-# 出力ファイルパス（オプション、未設定時は日付から自動生成）
-OUTPUT_PATH=./output/pull_requests_20260210_20260217.csv
+# 出力ファイルパス（オプション）
+# - 未設定時: 12時基準の日付+時刻を含むファイル名を自動生成
+#   例）./output/pull_requests_202602101200_202602171159.csv
+# - 設定時: ここで指定したパス・ファイル名がそのまま使用されます（任意の形式でOK）
+OUTPUT_PATH=./output/pull_requests_202602101200_202602171159.csv
 ```
 
 ### 日付の解釈ルール ⚠️ **破壊的変更**
@@ -96,10 +99,10 @@ OUTPUT_PATH=./output/pull_requests_20260210_20260217.csv
 
 **相対日付モード（START_DATE/END_DATE両方未設定時）**:
 - 実行日の**7日前12:00:00**から実行日の**11:59:59**までを自動取得（1週間分）
-- 出力ファイル名も自動生成: `./output/pull_requests_YYYYMMDD_YYYYMMDD.csv`
+- 出力ファイル名も自動生成: `./output/pull_requests_YYYYMMDDHHMM_YYYYMMDDHHMM.csv`
 - 例: 2026-02-17に実行した場合
   - → 取得期間: **2026-02-10 12:00:00 〜 2026-02-17 11:59:59**
-  - → ファイル名: `./output/pull_requests_20260210_20260217.csv`
+  - → ファイル名: `./output/pull_requests_202602101200_202602171159.csv`
 
 ### 2. AI 利用率ラベルの作成（初回のみ）
 
@@ -138,7 +141,7 @@ npx tsx get-github-pull-requests.ts
 📈 AI利用率範囲: 0% 〜 85%
 📋 PR状態別統計: { merged: 58, closed: 7, open: 3 }
 📄 CSVファイルを生成中...
-✅ CSVファイルを出力しました: ./output/pull_requests_20260210_20260217.csv
+✅ CSVファイルを出力しました: ./output/pull_requests_202602101200_202602171159.csv
 ```
 
 ### CSV 出力フォーマット
