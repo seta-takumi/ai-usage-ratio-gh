@@ -395,13 +395,13 @@ const createAbsoluteDateRange = (startDateStr: string, endDateStr: string): Date
 
 /**
  * 日付範囲から出力ファイル名を生成
- * 開始日と終了日を実際の日付（前日と当日）でフォーマット
+ * 開始日と終了日を時刻まで含めてフォーマット
  * @param dateRange 日付範囲
- * @returns ファイルパス文字列（例: "./output/pull_requests_20260216_20260217.csv"）
+ * @returns ファイルパス文字列（例: "./output/pull_requests_202602031200_202602171159.csv"）
  */
 const generateDefaultOutputPath = (dateRange: DateRange): string => {
-  const startStr = format(dateRange.start, "yyyyMMdd");
-  const endStr = format(dateRange.end, "yyyyMMdd");
+  const startStr = format(dateRange.start, "yyyyMMddHHmm");
+  const endStr = format(dateRange.end, "yyyyMMddHHmm");
 
   return `./output/pull_requests_${startStr}_${endStr}.csv`;
 };
