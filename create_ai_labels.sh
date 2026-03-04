@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # GitHub AI利用率ラベル作成スクリプト
-# 0%から100%まで5%刻みでラベルを作成
+# 5%から100%まで5%刻みでラベルを作成
 
 # 色（単色：青）
 COLOR="0066CC"
@@ -65,7 +65,7 @@ else
 fi
 
 echo
-echo "🏷️  AI利用率ラベルを作成します（0%〜100%、5%刻み）"
+echo "🏷️  AI利用率ラベルを作成します（5%〜100%、5%刻み）"
 echo
 
 # ラベル作成
@@ -73,7 +73,7 @@ success_count=0
 skip_count=0
 error_count=0
 
-for i in {0..20}; do
+for i in {1..20}; do
     percentage=$((i * 5))
     label_name="AI${percentage}%"
     description="AI利用率${percentage}%を示すラベル"
