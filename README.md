@@ -121,6 +121,47 @@ OUTPUT_PATH=./output/pull_requests_202602101200_202602171159.csv
 npx tsx get-github-pull-requests.ts
 ```
 
+## 🤖 Claude Code コマンド・スキルの使い分け
+
+Claude Code を使って分析を実行する方法は2種類あります。
+
+### `/analyzing-ai-usage` スキル（推奨）
+
+**PR取得から分析・レポート表示まで一括実行**したい場合に使用します。
+
+```
+/analyzing-ai-usage 今週のAI使用率を分析して
+/analyzing-ai-usage 2026-03-10を終了日として1週間分を分析して
+```
+
+- 環境変数の確認
+- `get-github-pull-requests.ts` によるPRデータ取得・CSV生成
+- `csv-analyzer.ts` による統計分析
+- グループ別サマリーの表示
+
+まで自動で行います。
+
+### `/analyze-csv` コマンド
+
+**すでにCSVが手元にある**場合など、分析・レポート表示のみ実行したい場合に使用します。
+
+```
+/analyze-csv
+```
+
+- `output/` ディレクトリの最新CSVを自動検出
+- `csv-analyzer.ts` による統計分析
+- グループ別サマリーの表示
+
+PR取得は行わず、既存のCSVファイルを対象に分析します。
+
+### 使い分けまとめ
+
+| やりたいこと | 使用するもの |
+|---|---|
+| PRデータの取得〜レポートまで一括実行 | `/analyzing-ai-usage` スキル |
+| 既存CSVの分析・レポートのみ | `/analyze-csv` コマンド |
+
 ## 📊 出力例
 
 ### コンソール出力
