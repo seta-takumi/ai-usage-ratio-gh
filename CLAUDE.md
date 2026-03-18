@@ -73,8 +73,12 @@ gh issue create --title "タイトル" --body "本文" --label "label1,label2"
 
 ### 必須環境変数
 
-- `GITHUB_TOKEN` - GitHubのPersonal Access Token
 - `GITHUB_REPOSITORIES` - 対象リポジトリ（例：`"owner1/repo1,owner2/repo2"`）
+
+### GitHub認証（いずれか）
+
+- `gh auth login` で認証済みであれば自動取得（推奨）
+- `GITHUB_TOKEN` - GitHubのPersonal Access Token
 
 ### オプション環境変数
 

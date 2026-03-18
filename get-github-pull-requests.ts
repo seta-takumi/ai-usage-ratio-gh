@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { TZDate } from "@date-fns/tz";
 import { subDays, set, format } from "date-fns";
 
@@ -409,19 +409,28 @@ const generateDefaultOutputPath = (dateRange: DateRange): string => {
 
 // 環境変数からの設定読み込み
 const getGitHubToken = (): string => {
-  // 環境変数を優先
-  if (process.env.GITHUB_TOKEN) {
-    return process.env.GITHUB_TOKEN;
+  // 環境変数を優先（空白のみの値は無効とみなす）
+  const envToken = process.env.GITHUB_TOKEN?.trim();
+  if (envToken) {
+    return envToken;
   }
   // gh CLI からトークンを取得
   try {
-    const token = execSync("gh auth token", { encoding: "utf8" }).trim();
+    const token = execFileSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
     if (token) return token;
-  } catch {
-    // gh が使えない場合はスキップ
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(
+        "GitHub CLI (gh) がインストールされていません。インストールするか、GITHUB_TOKEN環境変数を設定してください"
+      );
+    }
+    // 未ログイン・期限切れ等はスキップして下の汎用エラーへ
   }
   throw new Error(
-    "GitHubトークンが見つかりません。GITHUB_TOKEN環境変数を設定するか、`gh auth login` で認証してください"
+    "GitHubトークンが見つかりません。`gh auth login` で認証するか、GITHUB_TOKEN環境変数を設定してください"
   );
 };
 
