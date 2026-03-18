@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { execFileSync } from "child_process";
 import { TZDate } from "@date-fns/tz";
 import { subDays, set, format } from "date-fns";
 
@@ -407,17 +408,38 @@ const generateDefaultOutputPath = (dateRange: DateRange): string => {
 };
 
 // 環境変数からの設定読み込み
+const getGitHubToken = (): string => {
+  // 環境変数を優先（空白のみの値は無効とみなす）
+  const envToken = process.env.GITHUB_TOKEN?.trim();
+  if (envToken) {
+    return envToken;
+  }
+  // gh CLI からトークンを取得
+  try {
+    const token = execFileSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
+    if (token) return token;
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(
+        "GitHub CLI (gh) がインストールされていません。インストールするか、GITHUB_TOKEN環境変数を設定してください"
+      );
+    }
+    // 未ログイン・期限切れ等はスキップして下の汎用エラーへ
+  }
+  throw new Error(
+    "GitHubトークンが見つかりません。`gh auth login` で認証するか、GITHUB_TOKEN環境変数を設定してください"
+  );
+};
+
 const loadConfigFromEnv = (): Config => {
   const repositories = parseRepositories(process.env.GITHUB_REPOSITORIES || "");
   const startDateEnv = process.env.START_DATE || "";
   const endDateEnv = process.env.END_DATE || "";
   const outputPathEnv = process.env.OUTPUT_PATH || "";
-  const githubToken = process.env.GITHUB_TOKEN || "";
-
-  // 必須項目のバリデーション
-  if (!githubToken) {
-    throw new Error("GITHUB_TOKEN環境変数が設定されていません");
-  }
+  const githubToken = getGitHubToken();
 
   if (repositories.length === 0) {
     throw new Error(
@@ -478,8 +500,9 @@ const main = async (): Promise<void> => {
     config = loadConfigFromEnv();
   } catch (error) {
     console.error("❌ 設定エラー:", error);
-    console.log("\n📋 必須環境変数:");
-    console.log("  GITHUB_TOKEN: GitHubのPersonal Access Token");
+    console.log("\n📋 GitHub認証（いずれか）:");
+    console.log("  gh auth login  : GitHub CLI で認証（推奨）");
+    console.log("  GITHUB_TOKEN   : 環境変数でPersonal Access Tokenを指定");
     console.log(
       '  GITHUB_REPOSITORIES: 対象リポジトリ (例: "owner1/repo1,owner2/repo2")'
     );
