@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 import { TZDate } from "@date-fns/tz";
 import { subDays, set, format } from "date-fns";
 
@@ -407,17 +408,29 @@ const generateDefaultOutputPath = (dateRange: DateRange): string => {
 };
 
 // 環境変数からの設定読み込み
+const getGitHubToken = (): string => {
+  // 環境変数を優先
+  if (process.env.GITHUB_TOKEN) {
+    return process.env.GITHUB_TOKEN;
+  }
+  // gh CLI からトークンを取得
+  try {
+    const token = execSync("gh auth token", { encoding: "utf8" }).trim();
+    if (token) return token;
+  } catch {
+    // gh が使えない場合はスキップ
+  }
+  throw new Error(
+    "GitHubトークンが見つかりません。GITHUB_TOKEN環境変数を設定するか、`gh auth login` で認証してください"
+  );
+};
+
 const loadConfigFromEnv = (): Config => {
   const repositories = parseRepositories(process.env.GITHUB_REPOSITORIES || "");
   const startDateEnv = process.env.START_DATE || "";
   const endDateEnv = process.env.END_DATE || "";
   const outputPathEnv = process.env.OUTPUT_PATH || "";
-  const githubToken = process.env.GITHUB_TOKEN || "";
-
-  // 必須項目のバリデーション
-  if (!githubToken) {
-    throw new Error("GITHUB_TOKEN環境変数が設定されていません");
-  }
+  const githubToken = getGitHubToken();
 
   if (repositories.length === 0) {
     throw new Error(
@@ -478,8 +491,9 @@ const main = async (): Promise<void> => {
     config = loadConfigFromEnv();
   } catch (error) {
     console.error("❌ 設定エラー:", error);
-    console.log("\n📋 必須環境変数:");
-    console.log("  GITHUB_TOKEN: GitHubのPersonal Access Token");
+    console.log("\n📋 GitHub認証（いずれか）:");
+    console.log("  gh auth login  : GitHub CLI で認証（推奨）");
+    console.log("  GITHUB_TOKEN   : 環境変数でPersonal Access Tokenを指定");
     console.log(
       '  GITHUB_REPOSITORIES: 対象リポジトリ (例: "owner1/repo1,owner2/repo2")'
     );

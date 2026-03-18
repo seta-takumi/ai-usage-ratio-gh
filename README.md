@@ -32,9 +32,6 @@ brew install gh
 # 認証（初回のみ）
 gh auth login
 
-# Personal Access Token を環境変数に設定
-export GITHUB_TOKEN=$(gh auth token)
-
 # SAML SSO 環境の場合は追加で認証更新
 gh auth refresh -s repo
 ```
@@ -54,21 +51,12 @@ npm install
 
 ### 1. 環境変数の設定
 
-GitHub CLI を使用している場合、token を自動取得できます：
+`gh auth login` 済みであれば、追加の設定なしに自動でトークンが取得されます。
+CI/CD 環境などで `gh` が使えない場合は `GITHUB_TOKEN` 環境変数で指定してください。
 
-```bash
-# GitHub CLI の token を環境変数に設定
-export GITHUB_TOKEN=$(gh auth token)
-```
-
-または `.env` ファイルを作成して設定：
+`.env` ファイルを作成して設定：
 
 ```env
-# ===== 必須環境変数 =====
-# GitHub Personal Access Token
-# GitHub CLI使用時: export GITHUB_TOKEN=$(gh auth token) で自動設定可能
-GITHUB_TOKEN=gho_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
 # 対象リポジトリ（カンマ区切りで複数指定可能）
 GITHUB_REPOSITORIES=owner1/repo1,owner2/repo2
 
@@ -205,8 +193,8 @@ ai-usage-ratio/
 
 ### よくある問題
 
-**Q: `GITHUB_TOKEN環境変数が設定されていません` エラーが出る**
-A: GitHub Personal Access Token を`.env`ファイルまたは環境変数に設定してください。
+**Q: `GitHubトークンが見つかりません` エラーが出る**
+A: `gh auth login` で GitHub CLI の認証を行うか、`GITHUB_TOKEN` 環境変数に Personal Access Token を設定してください。
 
 **Q: API 制限エラーが発生する**
 A: GitHub API には制限があります。大量のリポジトリを処理する場合は時間を置いて実行してください。
